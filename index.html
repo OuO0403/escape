@@ -901,15 +901,15 @@
    FIREBASE CONFIG  ← 請填入你自己的 Firebase 設定
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBW8hEHEHgkIpBGl1v_xRkMJVoeufj0ryk",
+    authDomain: "cpbl-battle.firebaseapp.com",
+    databaseURL: "https://cpbl-battle-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "cpbl-battle",
+    storageBucket: "cpbl-battle.firebasestorage.app",
+    messagingSenderId: "478467621028",
+    appId: "1:478467621028:web:0a4842de3026e5f517e631"
 };
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
