@@ -822,6 +822,19 @@
         <!-- filled dynamically -->
       </div>
     </div>
+
+    <!-- Host action buttons -->
+    <div class="flex gap-3 mt-6 flex-wrap pb-8">
+      <button id="host-start-btn" class="btn-temple" style="flex:1;min-width:180px" onclick="hostStartGame()">
+        ▶ 開始遊戲試煉
+      </button>
+      <button class="btn-ghost" style="border-color:#ef4444;color:#f87171;padding:0.75rem 1.5rem" onclick="hostDisbandRoom()">
+        ✕ 解散神殿
+      </button>
+    </div>
+    <div class="text-xs text-stone-600 font-cinzel tracking-wider mb-8 text-center" id="host-start-note">
+      兩位學伴就位後，點擊「開始遊戲試煉」啟動序章
+    </div>
   </div>
 </div>
 
@@ -888,15 +901,15 @@
    FIREBASE CONFIG  ← 請填入你自己的 Firebase 設定
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const firebaseConfig = {
-    apiKey: "AIzaSyBW8hEHEHgkIpBGl1v_xRkMJVoeufj0ryk",
-    authDomain: "cpbl-battle.firebaseapp.com",
-    databaseURL: "https://cpbl-battle-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "cpbl-battle",
-    storageBucket: "cpbl-battle.firebasestorage.app",
-    messagingSenderId: "478467621028",
-    appId: "1:478467621028:web:0a4842de3026e5f517e631"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -973,6 +986,31 @@ let state = {
 };
 let listeners = [];  // Firebase listeners to clean up
 
+// 房間心跳：超過 5 分鐘未更新視為廢棄房間
+const ROOM_TIMEOUT_MS = 5 * 60 * 1000;
+let heartbeatInterval = null;
+
+function startHeartbeat() {
+  stopHeartbeat();
+  if (!state.roomId) return;
+  const tick = () => db.ref('/rooms/' + state.roomId + '/lastSeen').set(Date.now());
+  tick();
+  heartbeatInterval = setInterval(tick, 30000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+}
+
+function isRoomAlive(room) {
+  if (!room) return false;
+  // 有 lastSeen 時檢查是否過期
+  if (room.lastSeen) return (Date.now() - room.lastSeen) < ROOM_TIMEOUT_MS;
+  // 沒有 lastSeen 但有 createdAt，5 分鐘以內視為活著
+  if (room.createdAt) return (Date.now() - room.createdAt) < ROOM_TIMEOUT_MS;
+  return false;
+}
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    UTILITIES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -1029,12 +1067,20 @@ function listenRoomList() {
     const data = snap.val() || {};
     const container = document.getElementById('room-list');
     const keys = Object.keys(data);
-    if (keys.length === 0) {
+
+    // 分成活躍房間 & 過期房間
+    const aliveKeys = keys.filter(k => isRoomAlive(data[k]));
+    const deadKeys  = keys.filter(k => !isRoomAlive(data[k]));
+
+    // 自動清除過期房間
+    deadKeys.forEach(k => db.ref('/rooms/' + k).remove());
+
+    if (aliveKeys.length === 0) {
       container.innerHTML = '<div class="text-stone-600 text-sm text-center py-8 font-cinzel tracking-wider">目前無開放神殿，請建立新房間</div>';
       return;
     }
     container.innerHTML = '';
-    keys.forEach(roomId => {
+    aliveKeys.forEach(roomId => {
       const room = data[roomId];
       const el = document.createElement('div');
       el.className = 'room-card mb-3';
@@ -1051,11 +1097,13 @@ function listenRoomList() {
 
       el.innerHTML = `
         <div class="flex items-center justify-between">
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="font-cinzel font-bold text-amber-400 mb-1">${room.name || roomId}</div>
             <div class="flex gap-2 flex-wrap mt-1">${aStatus}${bStatus}${hStatus}</div>
           </div>
-          <div class="text-xs text-stone-500 font-cinzel">${getLevelLabel(room.currentLevel || 0)}</div>
+          <div class="text-right ml-3">
+            <div class="text-xs text-stone-500 font-cinzel mb-1">${getLevelLabel(room.currentLevel || 0)}</div>
+          </div>
         </div>
       `;
       el.addEventListener('click', () => joinRoom(roomId, room.name || roomId));
@@ -1075,6 +1123,7 @@ function createRoom() {
   db.ref('/rooms/' + roomId).set({
     name: name,
     createdAt: Date.now(),
+    lastSeen: Date.now(),
     currentLevel: 1,
     phase: 'role_selection',
     playerA_name: null, playerB_name: null, host_name: null,
@@ -1093,12 +1142,19 @@ function joinRoom(roomId, name) {
   state.roomId = roomId;
   state.roomName = name;
   document.getElementById('role-room-title').textContent = `⬡ ${name} ⬡`;
+  startHeartbeat();
   showView('role');
   listenRoleStatus();
 }
 
 function backToLobby() {
+  stopHeartbeat();
+  if (roleRef) { roleRef.off(); roleRef = null; }
+  state.role = null;
+  state.roomId = null;
+  state.roomName = '';
   showView('lobby');
+  listenRoomList();
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1111,10 +1167,18 @@ function listenRoleStatus() {
   roleRef = db.ref('/rooms/' + state.roomId);
   roleRef.on('value', snap => {
     const room = snap.val();
-    if (!room) return;
+    // 房間被刪除 → 踢回大廳
+    if (!room) {
+      stopHeartbeat();
+      showToast('神殿已被解散，返回大廳');
+      state.role = null; state.roomId = null; state.roomName = '';
+      showView('lobby');
+      listenRoomList();
+      return;
+    }
     updateRoleButtons(room);
 
-    // Auto-advance to game if already in game (re-joining)
+    // Auto-advance to correct view (re-joining)
     if (room.phase === 'game' && state.role) {
       startGame(room);
     } else if (room.phase === 'cinematic' && state.role) {
@@ -1132,15 +1196,26 @@ function updateRoleButtons(room) {
   const btnB = document.getElementById('btn-role-b');
   const btnH = document.getElementById('btn-role-host');
 
-  btnA.disabled = !!room.playerA_name && room.playerA_name !== state.nickname;
-  btnB.disabled = !!room.playerB_name && room.playerB_name !== state.nickname;
-  btnH.disabled = !!room.host_name && room.host_name !== state.nickname;
+  // 規則：
+  // 1. 若我已選定身份 (state.role)，只有我自己的那顆按鈕可以「確認」，其他全禁
+  // 2. 若我還沒選，被別人佔走的角色禁用
+  if (state.role) {
+    // 全部禁用，只保留自己已選的那顆做視覺確認
+    btnA.disabled = true;
+    btnB.disabled = true;
+    btnH.disabled = true;
+  } else {
+    btnA.disabled = !!room.playerA_name;
+    btnB.disabled = !!room.playerB_name;
+    btnH.disabled = !!room.host_name;
+  }
 
-  if (room.playerA_name) btnA.textContent = `⚔ 學伴 A：${room.playerA_name}`;
+  // 更新文字
+  if (room.playerA_name) btnA.textContent = `⚔ 學伴 A：${room.playerA_name}${state.role === 'A' ? ' ✓' : ''}`;
   else btnA.textContent = '⚔ 我是學伴 A';
-  if (room.playerB_name) btnB.textContent = `🛡 學伴 B：${room.playerB_name}`;
+  if (room.playerB_name) btnB.textContent = `🛡 學伴 B：${room.playerB_name}${state.role === 'B' ? ' ✓' : ''}`;
   else btnB.textContent = '🛡 我是學伴 B';
-  if (room.host_name) btnH.textContent = `🔮 主持人：${room.host_name}`;
+  if (room.host_name) btnH.textContent = `🔮 主持人：${room.host_name}${state.role === 'host' ? ' ✓' : ''}`;
   else btnH.textContent = '🔮 我是主持人（大學伴）';
 
   // Status display
@@ -1169,42 +1244,59 @@ function selectRole(role) {
   db.ref('/rooms/' + state.roomId + '/' + field).set(state.nickname).then(() => {
     showToast(`已選擇身份：${role === 'host' ? '主持人' : '學伴' + role}`);
 
-    // Check if we should trigger cinematic
     db.ref('/rooms/' + state.roomId).get().then(snap => {
       const room = snap.val();
       if (!room) return;
 
       if (role === 'host') {
-        // Host goes directly to host panel, skip cinematic
+        // 主持人直接進後台
         if (roleRef) roleRef.off();
         listenGameAsHost();
         showView('host');
       } else {
-        // Player: check if we need to start cinematic
-        if (room.phase === 'role_selection' && room.playerA_name && room.playerB_name) {
-          db.ref('/rooms/' + state.roomId).update({ phase: 'cinematic' });
-        } else if (room.phase === 'cinematic') {
+        // 學伴：根據當前 phase 決定行動
+        const phase = room.phase;
+        if (phase === 'cinematic') {
           startCinematic(room);
-        } else if (room.phase === 'game') {
+        } else if (phase === 'game') {
           startGame(room);
+        } else if (phase === 'theater') {
+          startTheater(room);
+        } else if (phase === 'credits') {
+          launchCredits(room);
         } else {
-          // Wait for phase change
+          // phase === 'role_selection' 或 'waiting'：等主持人按開始
+          showWaitingScreen();
           if (roleRef) roleRef.off();
           roleRef = db.ref('/rooms/' + state.roomId + '/phase');
-          roleRef.on('value', snap => {
-            const phase = snap.val();
-            if (phase === 'cinematic') {
+          roleRef.on('value', pSnap => {
+            const p = pSnap.val();
+            if (p === 'cinematic') {
+              roleRef.off();
               db.ref('/rooms/' + state.roomId).get().then(s => startCinematic(s.val()));
+            } else if (p === 'game') {
               roleRef.off();
-            } else if (phase === 'game') {
               db.ref('/rooms/' + state.roomId).get().then(s => startGame(s.val()));
-              roleRef.off();
             }
           });
         }
       }
     });
   });
+}
+
+/* 學伴等待畫面：主持人按開始前顯示 */
+function showWaitingScreen() {
+  const content = document.getElementById('cinematic-content');
+  content.innerHTML = `
+    <div class="cinematic-text dialog-box text-center py-8">
+      <div class="text-4xl mb-4 torch-flicker">⏳</div>
+      <div class="font-cinzel text-amber-400 text-lg tracking-widest mb-3">等待大學伴召喚……</div>
+      <div class="text-stone-500 text-sm">主持人尚未開始試煉，請稍候</div>
+    </div>
+  `;
+  document.getElementById('cinematic-next-btn').style.display = 'none';
+  showView('cinematic');
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1277,7 +1369,16 @@ function listenGameAsPlayer() {
   gameRef = db.ref('/rooms/' + state.roomId);
   gameRef.on('value', snap => {
     const room = snap.val();
-    if (!room) return;
+    // 房間被主持人解散 → 踢回大廳
+    if (!room) {
+      gameRef.off();
+      stopHeartbeat();
+      showToast('神殿已被大學伴解散，返回大廳');
+      state.role = null; state.roomId = null; state.roomName = '';
+      showView('lobby');
+      listenRoomList();
+      return;
+    }
     currentRoomData = room;
 
     if (room.phase === 'theater') { gameRef.off(); startTheater(room); return; }
@@ -1524,6 +1625,52 @@ function listenGameAsHost() {
     // Phase transitions
     if (room.phase === 'theater') { hostRef.off(); showView('theater'); listenTheater(); return; }
     if (room.phase === 'credits') { hostRef.off(); launchCredits(room); return; }
+
+    // Update start button state based on player readiness
+    const startBtn = document.getElementById('host-start-btn');
+    const startNote = document.getElementById('host-start-note');
+    const bothReady = !!(room.playerA_name && room.playerB_name);
+    const alreadyStarted = room.phase === 'cinematic' || room.phase === 'game';
+
+    if (alreadyStarted) {
+      startBtn.disabled = true;
+      startBtn.textContent = '✦ 試煉進行中';
+      if (startNote) startNote.textContent = '';
+    } else if (bothReady) {
+      startBtn.disabled = false;
+      startBtn.textContent = '▶ 開始遊戲試煉';
+      if (startNote) startNote.textContent = '✦ 兩位學伴已就位，可以開始！';
+      if (startNote) startNote.style.color = '#86efac';
+    } else {
+      startBtn.disabled = true;
+      const missing = [];
+      if (!room.playerA_name) missing.push('學伴A');
+      if (!room.playerB_name) missing.push('學伴B');
+      startBtn.textContent = `⏳ 等待 ${missing.join('、')} 就位`;
+      if (startNote) { startNote.textContent = '兩位學伴就位後才能開始'; startNote.style.color = ''; }
+    }
+
+    // Room deleted externally
+    if (!room) { hostRef.off(); returnToLobby(); }
+  });
+}
+
+function hostStartGame() {
+  db.ref('/rooms/' + state.roomId).get().then(snap => {
+    const room = snap.val();
+    if (!room) return;
+    if (!room.playerA_name || !room.playerB_name) {
+      showToast('請等待兩位學伴都選好身份再開始！'); return;
+    }
+    db.ref('/rooms/' + state.roomId + '/phase').set('cinematic');
+  });
+}
+
+function hostDisbandRoom() {
+  if (!confirm('確定要解散神殿嗎？所有玩家將被踢回大廳。')) return;
+  db.ref('/rooms/' + state.roomId).remove().then(() => {
+    if (hostRef) hostRef.off();
+    returnToLobby();
   });
 }
 
