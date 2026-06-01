@@ -916,7 +916,7 @@ const db = firebase.database();
    GAME DATA  ← 預留 6 關結構，請填入答案與圖片路徑
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 // 圖片副檔名設定：統一在這裡改，支援 jpg / jpeg / png / webp
-const IMG_EXT = "jpg";   // ← 改成你實際的副檔名
+const IMG_EXT = "JPG";   // ← 改成你實際的副檔名
 const IMG_BASE = "/escape/images/";  // ← GitHub Pages 專案路徑，格式：/repo名稱/images/
 
 const gameData = {
@@ -1818,7 +1818,7 @@ function launchCredits(room) {
   // 建立字幕內容
   const scroll = document.getElementById('credits-scroll');
   scroll.innerHTML = `
-    <div class="credits-title">【 KIST 數位學伴探險隊・全劇終 】</div>
+    <div class="credits-title">【KIST數位學伴探險隊・全劇終】</div>
     <div class="credits-divider"></div>
     <div class="credits-section-label">- 領銜主演 -</div>
     <div class="credits-role mt-6">幾何神殿・特級逆境解密探員</div>
