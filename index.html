@@ -924,7 +924,7 @@ const gameData = {
     {
       id: 1,
       name: "遠古光幕・第一試煉",
-      answer: "ANSWER1",            // ← 填入第1關答案
+      answer: "315",            // ← 填入第1關答案
       get imageA()    { return `${IMG_BASE}level1_a.${IMG_EXT}`; },
       get imageB()    { return `${IMG_BASE}level1_b.${IMG_EXT}`; },
       get hintImage() { return `${IMG_BASE}hint_level1.${IMG_EXT}`; },
@@ -934,7 +934,7 @@ const gameData = {
     {
       id: 2,
       name: "守護法陣・第二試煉",
-      answer: "ANSWER2",            // ← 填入第2關答案
+      answer: "7805",            // ← 填入第2關答案
       get imageA()    { return `${IMG_BASE}level2_a.${IMG_EXT}`; },
       get imageB()    { return `${IMG_BASE}level2_b.${IMG_EXT}`; },
       get hintImage() { return `${IMG_BASE}hint_level2.${IMG_EXT}`; },
@@ -943,7 +943,7 @@ const gameData = {
     {
       id: 3,
       name: "重力平息・第三試煉",
-      answer: "ANSWER3",            // ← 填入第3關答案
+      answer: "1243",            // ← 填入第3關答案
       get imageA()    { return `${IMG_BASE}level3_a.${IMG_EXT}`; },
       get imageB()    { return `${IMG_BASE}level3_b.${IMG_EXT}`; },
       get hintImage() { return `${IMG_BASE}hint_level3.${IMG_EXT}`; },
@@ -952,7 +952,7 @@ const gameData = {
     {
       id: 4,
       name: "防禦加強・第四試煉",
-      answer: "ANSWER4",            // ← 填入第4關答案
+      answer: "KISTunlock",            // ← 填入第4關答案
       get imageA()    { return `${IMG_BASE}level4_a.${IMG_EXT}`; },
       get imageB()    { return `${IMG_BASE}level4_b.${IMG_EXT}`; },
       get hintImage() { return `${IMG_BASE}hint_level4.${IMG_EXT}`; },
@@ -961,7 +961,7 @@ const gameData = {
     {
       id: 5,
       name: "微光透出・第五試煉",
-      answer: "ANSWER5",            // ← 填入第5關答案
+      answer: "18",            // ← 填入第5關答案
       get imageA()    { return `${IMG_BASE}level5_a.${IMG_EXT}`; },
       get imageB()    { return `${IMG_BASE}level5_b.${IMG_EXT}`; },
       get hintImage() { return `${IMG_BASE}hint_level5.${IMG_EXT}`; },
@@ -970,7 +970,7 @@ const gameData = {
     {
       id: 6,
       name: "終極神殿鎖・決戰",
-      answer: "ANSWER6",            // ← 填入第6關答案
+      answer: "56",            // ← 填入第6關答案
       get imageA()    { return `${IMG_BASE}level6_a.${IMG_EXT}`; },
       get imageB()    { return `${IMG_BASE}level6_b.${IMG_EXT}`; },
       get hintImage() { return `${IMG_BASE}hint_level6.${IMG_EXT}`; },
@@ -1901,11 +1901,14 @@ document.addEventListener('keydown', e => {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    GAME LISTENER
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let lastRenderedLevel = -1; // 記錄上次渲染的關卡，避免重複清空輸入框
+
 function listenGameAsPlayer() {
   if (gameRef) gameRef.off();
+  lastRenderedLevel = -1;
   showView('game');
 
-  // Bind live input sync ONCE using oninput (replaces any previous handler)
+  // 綁定 live input，用 oninput 賦值確保只有一個 handler
   const answerEl = document.getElementById('game-answer-input');
   answerEl.oninput = (e) => {
     if (!state.roomId) return;
@@ -1929,8 +1932,15 @@ function listenGameAsPlayer() {
     if (room.phase === 'credits') { gameRef.off(); launchCredits(room); return; }
 
     const lvl = room.currentLevel || 1;
-    renderGameLevel(room, lvl);
-    renderLevelGems(lvl);
+
+    // ★ 核心修正：只有關卡號碼改變時才重新渲染關卡畫面（會清空輸入框）
+    //   其餘 Firebase 更新（隊友打字、心跳等）只更新隊友狀態列，不動輸入框
+    if (lvl !== lastRenderedLevel) {
+      lastRenderedLevel = lvl;
+      renderGameLevel(room, lvl);
+      renderLevelGems(lvl);
+    }
+
     renderTeammateStatus(room);
     watchHintChanges(room);
     checkHintVisibility(room, lvl);
