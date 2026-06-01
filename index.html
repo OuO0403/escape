@@ -1137,6 +1137,9 @@ function createRoom() {
     hint_level3_visible: false, hint_level4_visible: false,
     hint_level5_visible: false, hint_level6_visible: false,
     theater_act: 1,
+    theater_ready_A_act1: false, theater_ready_B_act1: false,
+    theater_ready_A_act2: false, theater_ready_B_act2: false,
+    theater_ready_A_act3: false, theater_ready_B_act3: false,
   }).then(() => {
     joinRoom(roomId, name);
   });
@@ -1689,7 +1692,7 @@ function issueHint(lvl) {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ENDGAME THEATER
+   ENDGAME THEATER  —  雙人確認才推進
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const theaterActs = [
   (names) => `<div class="mb-4"><span class="font-cinzel text-xs text-amber-700 tracking-widest">神殿銘文</span><br/><br/>終極試煉通過。崩塌停止，千年的詛咒在這一刻消散。沉重的神殿大門在巨大的轟鳴聲中，緩緩向兩側開啟！</div>
@@ -1724,43 +1727,77 @@ function listenTheater() {
 
     document.getElementById('theater-act-num').textContent = act;
     document.getElementById('theater-dialog-text').innerHTML = theaterActs[act - 1]
-      ? theaterActs[act - 1](names)
-      : '';
+      ? theaterActs[act - 1](names) : '';
+
+    if (act === 2) document.getElementById('view-theater').classList.add('forest-bg');
+
+    // 計算誰已按下確認
+    const readyA = !!room[`theater_ready_A_act${act}`];
+    const readyB = !!room[`theater_ready_B_act${act}`];
+    const myReady = state.role === 'A' ? readyA : state.role === 'B' ? readyB : false;
 
     const btn = document.getElementById('theater-next-btn');
     const note = document.getElementById('theater-sync-note');
-    if (act === 2) {
-      // Apply forest bg
-      document.getElementById('view-theater').classList.add('forest-bg');
-    }
-    if (act < 3) {
-      btn.textContent = '下一幕 ▶';
-      note.textContent = '（點擊後全體同步推進）';
+
+    const isLastAct = act >= 3;
+    const btnLabel = isLastAct ? '🎁 開啟結業寶箱' : '下一幕 ▶';
+
+    if (myReady) {
+      btn.disabled = true;
+      btn.textContent = '⏳ 等待隊友確認…';
+      const otherReady = state.role === 'A' ? readyB : readyA;
+      note.textContent = otherReady ? '雙方皆已確認，推進中…' : '等待另一位探險家按下確認';
     } else {
-      btn.textContent = '🎁 開啟結業寶箱';
+      btn.disabled = false;
+      btn.textContent = btnLabel;
+      const partnerDone = state.role === 'A' ? readyB : readyA;
+      note.textContent = partnerDone ? `✦ 隊友已準備好，換你了！` : '（需雙方都按下才會推進）';
+    }
+
+    // 主持人不需要按，直接顯示狀態
+    if (state.role === 'host') {
+      btn.disabled = true;
+      btn.textContent = readyA && readyB ? '推進中…' : `等待學伴確認（A:${readyA?'✓':'…'} B:${readyB?'✓':'…'}）`;
       note.textContent = '';
     }
   });
 }
 
 function theaterNext() {
-  db.ref('/rooms/' + state.roomId + '/theater_act').get().then(snap => {
-    const act = snap.val() || 1;
-    if (act < 3) {
-      db.ref('/rooms/' + state.roomId + '/theater_act').set(act + 1);
-    } else {
-      // Launch credits
-      db.ref('/rooms/' + state.roomId).get().then(s => {
-        if (theaterRef) theaterRef.off();
-        db.ref('/rooms/' + state.roomId + '/phase').set('credits');
+  if (state.role === 'host') return; // 主持人不操作
+  db.ref('/rooms/' + state.roomId).get().then(snap => {
+    const room = snap.val();
+    if (!room) return;
+    const act = room.theater_act || 1;
+    const myKey = `theater_ready_${state.role}_act${act}`;
+
+    // 標記自己已確認
+    db.ref('/rooms/' + state.roomId + '/' + myKey).set(true).then(() => {
+      // 檢查對方是否也確認了
+      db.ref('/rooms/' + state.roomId).get().then(snap2 => {
+        const r = snap2.val();
+        if (!r) return;
+        const readyA = !!r[`theater_ready_A_act${act}`];
+        const readyB = !!r[`theater_ready_B_act${act}`];
+        if (readyA && readyB) {
+          // 雙方都按了 → 推進
+          if (act < 3) {
+            db.ref('/rooms/' + state.roomId).update({ theater_act: act + 1 });
+          } else {
+            // 進入 credits
+            db.ref('/rooms/' + state.roomId).update({ phase: 'credits' });
+          }
+        }
       });
-    }
+    });
   });
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    CREDITS ROLL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let creditsRef = null;
+
 function launchCredits(room) {
   if (theaterRef) theaterRef.off();
   if (gameRef) gameRef.off();
@@ -1770,52 +1807,41 @@ function launchCredits(room) {
   const B = room.playerB_name || '學伴B';
   const H = room.host_name || '大學伴';
 
-  // Confetti
-  const duration = 5 * 1000;
-  const end = Date.now() + duration;
+  // 煙火特效
+  const end = Date.now() + 5000;
   (function frame() {
-    confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#f59e0b','#fcd34d','#f97316','#fbbf24'] });
+    confetti({ particleCount: 3, angle: 60,  spread: 55, origin: { x: 0 }, colors: ['#f59e0b','#fcd34d','#f97316','#fbbf24'] });
     confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#f59e0b','#fcd34d','#f97316','#fbbf24'] });
     if (Date.now() < end) requestAnimationFrame(frame);
   }());
 
-  // Build credits HTML
+  // 建立字幕內容
   const scroll = document.getElementById('credits-scroll');
   scroll.innerHTML = `
     <div class="credits-title">【 KIST 數位學伴探險隊・全劇終 】</div>
-
     <div class="credits-divider"></div>
     <div class="credits-section-label">- 領銜主演 -</div>
-
     <div class="credits-role mt-6">幾何神殿・特級逆境解密探員</div>
     <div class="credits-name">${A}</div>
-
     <div class="credits-role mt-6">遠古遺跡・不敗邏輯推理探員</div>
     <div class="credits-name">${B}</div>
-
     <div class="credits-divider"></div>
     <div class="credits-section-label">- 專屬榮譽成就榜 -</div>
-
     <div class="credits-quote mt-6">${A} 探員</div>
     <div class="credits-role" style="color:var(--amber-light);font-size:1rem;margin:0.5rem 0">「倒吃甘蔗修正大師」</div>
     <div class="credits-desc">── 擁有在迷霧中冷靜覺察的智慧，能於錯誤中重整旗鼓，<br/>以無比的耐性修正每一道偏差的軌道，是探險隊最堅實的破局之盾。</div>
-
     <div class="credits-quote mt-8">${B} 探員</div>
     <div class="credits-role" style="color:var(--amber-light);font-size:1rem;margin:0.5rem 0">「直覺滿分幾何戰神」</div>
     <div class="credits-desc">── 擁有穿透複雜規律的敏銳洞察，能於電光石火間捕捉線索，<br/>以嚴謹的邏輯推導出隱藏的終極解答，是探險隊最具鋒芒的開路之劍。</div>
-
     <div class="credits-divider"></div>
     <div class="credits-section-label">- 探險隊全體總指揮 -</div>
     <div class="credits-role mt-4">數位時空考察引路人兼核心大學伴</div>
     <div class="credits-name">${H}</div>
-
     <div class="credits-divider"></div>
     <div class="credits-section-label">- 特別感謝與致敬 -</div>
     <div class="credits-role mt-4" style="font-size:1.1rem;color:var(--text-secondary)">KIST 數位學伴計畫</div>
-
     <div class="credits-divider"></div>
     <div class="credits-section-label">- 終局結業寄語 -</div>
-
     <div class="credits-final mt-6">
       這趟為期一學期的數位探險雖在此刻劃下句點，<br/>
       但浩瀚數學宇宙的航行，才正要展開。<br/><br/>
@@ -1828,13 +1854,24 @@ function launchCredits(room) {
     <div style="height:40vh"></div>
   `;
 
+  // 顯示 credits 畫面（隱藏所有 view）
   document.getElementById('credits-container').style.display = 'block';
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
-  // Show reset button after scroll ends
-  setTimeout(() => {
-    document.getElementById('credits-reset-btn').style.display = 'block';
-  }, 88000);
+  // 重置按鈕：捲動結束後顯示（90秒），同時監聽 Firebase 讓任何人按都能重置
+  const resetBtn = document.getElementById('credits-reset-btn');
+  resetBtn.style.display = 'none';
+  setTimeout(() => { resetBtn.style.display = 'block'; }, 90000);
+
+  // 監聽 room 被刪除（其他人按了重置）→ 自動回大廳
+  if (creditsRef) creditsRef.off();
+  creditsRef = db.ref('/rooms/' + state.roomId);
+  creditsRef.on('value', snap => {
+    if (!snap.val()) {
+      creditsRef.off();
+      returnToLobby();
+    }
+  });
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1843,6 +1880,7 @@ function launchCredits(room) {
 function resetRoom() {
   if (!state.roomId) { returnToLobby(); return; }
   db.ref('/rooms/' + state.roomId).remove().then(() => {
+    if (creditsRef) creditsRef.off();
     returnToLobby();
   });
 }
@@ -1852,6 +1890,7 @@ function returnToLobby() {
   state.role = null;
   state.roomId = null;
   state.roomName = '';
+  document.getElementById('view-theater').classList.remove('forest-bg');
   showView('lobby');
   listenRoomList();
 }
