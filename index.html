@@ -714,7 +714,7 @@
       <div class="clue-image-placeholder">
         <span class="text-3xl">🗿</span>
         <span>線索圖片</span>
-        <span class="text-xs">請將對應圖片放置於 /escape/images/ 目錄</span>
+        <span class="text-xs">請將對應圖片放置於 images/ 目錄</span>
       </div>
       <img id="game-clue-img" src="" alt="線索圖" class="hidden" onload="this.classList.remove('hidden'); this.parentElement.querySelector('.clue-image-placeholder').remove();" />
     </div>
@@ -915,61 +915,65 @@ const db = firebase.database();
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    GAME DATA  ← 預留 6 關結構，請填入答案與圖片路徑
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+// 圖片副檔名設定：統一在這裡改，支援 jpg / jpeg / png / webp
+const IMG_EXT = "JPG";   // ← 改成你實際的副檔名
+const IMG_BASE = "/escape/images/";  // ← GitHub Pages 專案路徑，格式：/repo名稱/images/
+
 const gameData = {
   levels: [
     {
       id: 1,
       name: "遠古光幕・第一試煉",
-      answer: "315",            // ← 填入第1關答案
-      imageA: "/escape/images/level1_a.JPG",
-      imageB: "/escape/images/level1_b.JPG",
-      hintImage: "/escape/images/hint_level1.JPG",
+      answer: "ANSWER1",            // ← 填入第1關答案
+      get imageA()    { return `${IMG_BASE}level1_a.${IMG_EXT}`; },
+      get imageB()    { return `${IMG_BASE}level1_b.${IMG_EXT}`; },
+      get hintImage() { return `${IMG_BASE}hint_level1.${IMG_EXT}`; },
       storyA: (names) => `神殿銘文：第一道遠古光幕升起。雙子的靈魂已跨越密室相連，請交換你們眼前的殘缺銘文。${names.A}，你眼前的石壁浮現了第一道殘缺的光幕。和 ${names.B} 聯手找出啟動密碼吧！`,
       storyB: (names) => `神殿銘文：第一道遠古光幕升起。雙子的靈魂已跨越密室相連，請交換你們眼前的殘缺銘文。${names.B}，你眼前的石壁浮現了第一道殘缺的光幕。和 ${names.A} 聯手找出啟動密碼吧！`,
     },
     {
       id: 2,
       name: "守護法陣・第二試煉",
-      answer: "7805",            // ← 填入第2關答案
-      imageA: "/escape/images/level2_a.JPG",
-      imageB: "/escape/images/level2_b.JPG",
-      hintImage: "/escape/images/hint_level2.JPG",
+      answer: "ANSWER2",            // ← 填入第2關答案
+      get imageA()    { return `${IMG_BASE}level2_a.${IMG_EXT}`; },
+      get imageB()    { return `${IMG_BASE}level2_b.${IMG_EXT}`; },
+      get hintImage() { return `${IMG_BASE}hint_level2.${IMG_EXT}`; },
       storyShared: () => `神殿銘文：第一道石門碎裂。古老的機關再度翻轉，前方的守護法陣散發出更強烈的光芒。`,
     },
     {
       id: 3,
       name: "重力平息・第三試煉",
-      answer: "1243",            // ← 填入第3關答案
-      imageA: "/escape/images/level3_a.JPG",
-      imageB: "/escape/images/level3_b.JPG",
-      hintImage: "/escape/images/hint_level3.JPG",
+      answer: "ANSWER3",            // ← 填入第3關答案
+      get imageA()    { return `${IMG_BASE}level3_a.${IMG_EXT}`; },
+      get imageB()    { return `${IMG_BASE}level3_b.${IMG_EXT}`; },
+      get hintImage() { return `${IMG_BASE}hint_level3.${IMG_EXT}`; },
       storyShared: () => `神殿銘文：第二道石門碎裂。神殿的重力逐漸平息，試煉之路已過半，神殿的古老能量正在緩慢退去。`,
     },
     {
       id: 4,
       name: "防禦加強・第四試煉",
-      answer: "KISTunlock",            // ← 填入第4關答案
-      imageA: "/escape/images/level4_a.JPG",
-      imageB: "/escape/images/level4_b.JPG",
-      hintImage: "/escape/images/hint_level4.JPG",
+      answer: "ANSWER4",            // ← 填入第4關答案
+      get imageA()    { return `${IMG_BASE}level4_a.${IMG_EXT}`; },
+      get imageB()    { return `${IMG_BASE}level4_b.${IMG_EXT}`; },
+      get hintImage() { return `${IMG_BASE}hint_level4.${IMG_EXT}`; },
       storyShared: (names) => `${names.host}（大學伴）：（轟隆隆——）巨石開始搖晃掉落，看來守護法陣的防禦加強了！兩位如果陷入思維的迷霧，可以隨時向我申請『神殿提示卡』，我會用法杖引導你們看清盲點。`,
     },
     {
       id: 5,
       name: "微光透出・第五試煉",
-      answer: "18",            // ← 填入第5關答案
-      imageA: "/escape/images/level5_a.JPG",
-      imageB: "/escape/images/level5_b.JPG",
-      hintImage: "/escape/images/hint_level5.JPG",
+      answer: "ANSWER5",            // ← 填入第5關答案
+      get imageA()    { return `${IMG_BASE}level5_a.${IMG_EXT}`; },
+      get imageB()    { return `${IMG_BASE}level5_b.${IMG_EXT}`; },
+      get hintImage() { return `${IMG_BASE}hint_level5.${IMG_EXT}`; },
       storyShared: () => `神殿銘文：第四道石門化為塵土。遠方地平線隱約透出出口的微光，神殿的最後防禦即將超載。`,
     },
     {
       id: 6,
       name: "終極神殿鎖・決戰",
-      answer: "56",            // ← 填入第6關答案
-      imageA: "/escape/images/level6_a.JPG",
-      imageB: "/escape/images/level6_b.JPG",
-      hintImage: "/escape/images/hint_level6.JPG",
+      answer: "ANSWER6",            // ← 填入第6關答案
+      get imageA()    { return `${IMG_BASE}level6_a.${IMG_EXT}`; },
+      get imageB()    { return `${IMG_BASE}level6_b.${IMG_EXT}`; },
+      get hintImage() { return `${IMG_BASE}hint_level6.${IMG_EXT}`; },
       storyShared: () => `神殿銘文：警告。神殿的四壁正以肉眼可見的速度向內崩塌。此為最終核心機關，凝聚你們這幾個月來累積的所有默契，解開最後的終極神殿鎖！`,
     },
   ]
@@ -1369,16 +1373,7 @@ function listenGameAsPlayer() {
   gameRef = db.ref('/rooms/' + state.roomId);
   gameRef.on('value', snap => {
     const room = snap.val();
-    // 房間被主持人解散 → 踢回大廳
-    if (!room) {
-      gameRef.off();
-      stopHeartbeat();
-      showToast('神殿已被大學伴解散，返回大廳');
-      state.role = null; state.roomId = null; state.roomName = '';
-      showView('lobby');
-      listenRoomList();
-      return;
-    }
+    if (!room) return; // handled by listenGameAsPlayer
     currentRoomData = room;
 
     if (room.phase === 'theater') { gameRef.off(); startTheater(room); return; }
@@ -1423,13 +1418,25 @@ function renderGameLevel(room, lvl) {
 
   // Clue image
   const imgSrc = state.role === 'A' ? level.imageA : level.imageB;
-  const img = document.getElementById('game-clue-img');
   const wrap = document.getElementById('game-clue-wrap');
+  wrap.innerHTML = '';
+  const ph = document.createElement('div');
+  ph.className = 'clue-image-placeholder';
+  ph.innerHTML = '<span style="font-size:2rem">⌛</span><span>圖片載入中…</span>';
+  wrap.appendChild(ph);
+  const img = document.createElement('img');
+  img.alt = '線索圖';
+  img.style.cssText = 'max-width:100%;max-height:400px;object-fit:contain;display:none;';
+  img.onload = () => {
+    const p = wrap.querySelector('.clue-image-placeholder');
+    if (p) p.remove();
+    img.style.display = 'block';
+  };
+  img.onerror = () => {
+    ph.innerHTML = '<span style="font-size:2rem">🗿</span><span>找不到圖片：' + imgSrc + '</span>';
+  };
   img.src = imgSrc;
-  img.classList.remove('hidden');
-  // Remove placeholder if exists
-  const placeholder = wrap.querySelector('.clue-image-placeholder');
-  if (placeholder) placeholder.remove();
+  wrap.appendChild(img);
 
   // Clear answer
   document.getElementById('game-answer-input').value = '';
@@ -1466,9 +1473,9 @@ function renderTeammateStatus(room) {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    ANSWER SUBMISSION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-document.getElementById('game-answer-input').addEventListener('keydown', e => {
+document.getElementById('game-answer-input').onkeydown = (e) => {
   if (e.key === 'Enter') submitAnswer();
-});
+};
 
 function submitAnswer() {
   const input = document.getElementById('game-answer-input').value.trim();
@@ -1892,17 +1899,30 @@ document.addEventListener('keydown', e => {
 });
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   PATCH: gameRef listener with hint watching
+   GAME LISTENER
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-// Override listenGameAsPlayer to include hint watching
 function listenGameAsPlayer() {
   if (gameRef) gameRef.off();
   showView('game');
 
+  // Bind live input sync ONCE using oninput (replaces any previous handler)
+  const answerEl = document.getElementById('game-answer-input');
+  answerEl.oninput = (e) => {
+    if (!state.roomId) return;
+    const field = state.role === 'A' ? 'playerA_live_input' : 'playerB_live_input';
+    db.ref('/rooms/' + state.roomId + '/' + field).set(e.target.value);
+  };
+
   gameRef = db.ref('/rooms/' + state.roomId);
   gameRef.on('value', snap => {
     const room = snap.val();
-    if (!room) return;
+    if (!room) {
+      gameRef.off();
+      stopHeartbeat();
+      showToast('神殿已被大學伴解散，返回大廳');
+      state.role = null; state.roomId = null; state.roomName = '';
+      showView('lobby'); listenRoomList(); return;
+    }
     currentRoomData = room;
 
     if (room.phase === 'theater') { gameRef.off(); startTheater(room); return; }
@@ -1914,11 +1934,6 @@ function listenGameAsPlayer() {
     renderTeammateStatus(room);
     watchHintChanges(room);
     checkHintVisibility(room, lvl);
-  });
-
-  document.getElementById('game-answer-input').addEventListener('input', e => {
-    const field = state.role === 'A' ? 'playerA_live_input' : 'playerB_live_input';
-    db.ref('/rooms/' + state.roomId + '/' + field).set(e.target.value);
   });
 }
 </script>
