@@ -291,16 +291,16 @@
   }
   #credits-scroll {
     position: absolute;
-    bottom: -20px;
+    top: 0;
     left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 700px;
     text-align: center;
     padding: 2rem;
-    animation: scrollUp 90s linear forwards;
+    animation: scrollUp 60s linear forwards;
   }
   @keyframes scrollUp {
     from { transform: translateX(-50%) translateY(100vh); }
-    to { transform: translateX(-50%) translateY(-200%); }
+    to   { transform: translateX(-50%) translateY(-100%); }
   }
   .credits-title {
     font-family: 'Cinzel', serif;
@@ -916,7 +916,7 @@ const db = firebase.database();
    GAME DATA  ← 預留 6 關結構，請填入答案與圖片路徑
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 // 圖片副檔名設定：統一在這裡改，支援 jpg / jpeg / png / webp
-const IMG_EXT = "JPG";   // ← 改成你實際的副檔名
+const IMG_EXT = "jpg";   // ← 改成你實際的副檔名
 const IMG_BASE = "/escape/images/";  // ← GitHub Pages 專案路徑，格式：/repo名稱/images/
 
 const gameData = {
@@ -1861,7 +1861,7 @@ function launchCredits(room) {
   // 重置按鈕：捲動結束後顯示（90秒），同時監聽 Firebase 讓任何人按都能重置
   const resetBtn = document.getElementById('credits-reset-btn');
   resetBtn.style.display = 'none';
-  setTimeout(() => { resetBtn.style.display = 'block'; }, 90000);
+  setTimeout(() => { resetBtn.style.display = 'block'; }, 55000);
 
   // 監聽 room 被刪除（其他人按了重置）→ 自動回大廳
   if (creditsRef) creditsRef.off();
